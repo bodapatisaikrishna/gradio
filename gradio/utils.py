@@ -970,11 +970,15 @@ def sanitize_value_for_csv(value: str | float) -> str | float:
             pass
 
     # Typical CSV injection protection
-    unsafe_prefixes = ["=", "+", "-", "@", "\t", "\n"]
-    unsafe_sequences = [",=", ",+", ",-", ",@", ",\t", ",\n"]
+    unsafe_prefixes = ("=", "+", "-", "@", "\t", "\r", "\n")
+    unsafe_separators = (",", "\t", "\r", "\n")
+    unsafe_triggers = ("=", "+", "-", "@")
+    unsafe_sequences = tuple(
+        f"{sep}{trigger}" for sep in unsafe_separators for trigger in unsafe_triggers
+    ) + (",\t", ",\r", ",\n")
 
     # If starts with any unsafe prefix or contains an unsafe sequence
-    if any(value.startswith(prefix) for prefix in unsafe_prefixes) or any(
+    if value.startswith(unsafe_prefixes) or any(
         sequence in value for sequence in unsafe_sequences
     ):
         return f"'{value}"

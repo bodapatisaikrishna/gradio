@@ -221,6 +221,44 @@ class TestSanitizeForCSV:
         assert sanitize_value_for_csv(-44.44) == -44.44
         assert sanitize_value_for_csv("1+1=2") == "1+1=2"
         assert sanitize_value_for_csv("1aaa2") == "1aaa2"
+        assert sanitize_value_for_csv(",hello") == ",hello"
+        assert sanitize_value_for_csv("hello, world") == "hello, world"
+        assert sanitize_value_for_csv("hello\tworld") == "hello\tworld"
+        assert sanitize_value_for_csv("hello\nworld") == "hello\nworld"
+        assert sanitize_value_for_csv("hello\rworld") == "hello\rworld"
+
+    def test_unsafe_separator_prefix(self):
+        # A value starting with a separator character (tab/newline/CR) is unsafe on
+        # its own, same as starting with "=", "+", "-", or "@" directly. (#13837)
+        assert sanitize_value_for_csv("\t=1+2") == "'\t=1+2"
+        assert sanitize_value_for_csv("\n=1+2") == "'\n=1+2"
+        assert sanitize_value_for_csv("\r=1+2") == "'\r=1+2"
+        assert sanitize_value_for_csv("\rfoo") == "'\rfoo"
+        assert sanitize_value_for_csv("\tfoo") == "'\tfoo"
+        assert sanitize_value_for_csv("\nfoo") == "'\nfoo"
+
+    def test_unsafe_separator_sequence(self):
+        # A formula trigger appearing right after a separator character elsewhere in
+        # the value is unsafe too, not just when the separator is a comma. (#13837)
+        assert sanitize_value_for_csv("foo,=1+2") == "'foo,=1+2"
+        assert sanitize_value_for_csv("foo\t=1+2") == "'foo\t=1+2"
+        assert sanitize_value_for_csv("foo\n=1+2") == "'foo\n=1+2"
+        assert sanitize_value_for_csv("foo\r=1+2") == "'foo\r=1+2"
+        assert sanitize_value_for_csv("foo,+1+2") == "'foo,+1+2"
+        assert sanitize_value_for_csv("foo\t+1+2") == "'foo\t+1+2"
+        assert sanitize_value_for_csv("foo\n+1+2") == "'foo\n+1+2"
+        assert sanitize_value_for_csv("foo\r+1+2") == "'foo\r+1+2"
+        assert sanitize_value_for_csv("foo,-1+2") == "'foo,-1+2"
+        assert sanitize_value_for_csv("foo\t-1+2") == "'foo\t-1+2"
+        assert sanitize_value_for_csv("foo\n-1+2") == "'foo\n-1+2"
+        assert sanitize_value_for_csv("foo\r-1+2") == "'foo\r-1+2"
+        assert sanitize_value_for_csv("foo,@1+2") == "'foo,@1+2"
+        assert sanitize_value_for_csv("foo\t@1+2") == "'foo\t@1+2"
+        assert sanitize_value_for_csv("foo\n@1+2") == "'foo\n@1+2"
+        assert sanitize_value_for_csv("foo\r@1+2") == "'foo\r@1+2"
+        assert sanitize_value_for_csv("foo,\tbar") == "'foo,\tbar"
+        assert sanitize_value_for_csv("foo,\rbar") == "'foo,\rbar"
+        assert sanitize_value_for_csv("foo,\nbar") == "'foo,\nbar"
 
     def test_list(self):
         assert sanitize_list_for_csv([4, "def=", "=gh+ij"]) == [4, "def=", "'=gh+ij"]
